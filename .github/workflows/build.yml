@@ -21,6 +21,9 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # Version figée : le projet utilise Gradle 8.14 / AGP 8.11 (Flutter 3.38).
+          # La toute dernière version de Flutter exige Gradle 9.3.1 et fait échouer la compilation.
+          flutter-version: 3.38.x
           channel: stable
           cache: true
 
@@ -42,3 +45,4 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: Build ${{ github.run_number }}
           files: build/app/outputs/flutter-apk/*-release.apk
+          

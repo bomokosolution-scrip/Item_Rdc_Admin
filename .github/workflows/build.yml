@@ -27,6 +27,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Version de Flutter utilisée (pour diagnostic)
+        run: flutter --version
+
       - name: Dépendances
         run: flutter pub get
 

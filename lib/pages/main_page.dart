@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:item_rdc_admin/theme_manager.dart';
 import 'library_admin_page.dart';
 import 'notifications_page.dart';
+import 'publications_admin_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -598,6 +599,21 @@ class _MainPageState extends State<MainPage> {
                 context,
                 MaterialPageRoute(
                   builder: (BuildContext context) => LibraryAdminPage(),
+                ),
+              );
+            },
+            primaryColor,
+          ),
+          const SizedBox(height: 12),
+          _navButton(
+            "Publications",
+            "Review works submitted by users",
+            Icons.fact_check_rounded,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (BuildContext context) => const PublicationsAdminPage(),
                 ),
               );
             },

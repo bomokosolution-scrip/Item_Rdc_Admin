@@ -21,11 +21,11 @@ class SupabaseConfig {
   //    --dart-define=SUPABASE_ANON_KEY=...  (rien à modifier dans ce fichier).
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://eovmshzuovdagxvanpcl.supabase.co',
+    defaultValue: 'https://VOTRE-PROJET.supabase.co',
   );
   static const String anonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_dbO4dWACu1H0Qd0_RJ5EoQ_tJTD0kjI',
+    defaultValue: 'VOTRE_CLE_ANON_PUBLIC',
   );
   static const String bucket = 'media';
 
@@ -39,6 +39,10 @@ class SupabaseStorage {
   SupabaseStorage._();
 
   static final Random _rnd = Random();
+
+  /// Images envoyées pendant cette session : affichées depuis la mémoire,
+  /// donc INSTANTANÉMENT, sans attendre le réseau.
+  static final Map<String, Uint8List> recent = {};
 
   /// Réduit l'image (plus grand côté = [maxSide]) et la ré-encode en PNG.
   static Future<Uint8List> prepareImage(Uint8List raw, {int maxSide = 512}) async {
@@ -105,7 +109,10 @@ class SupabaseStorage {
       if (res.statusCode < 200 || res.statusCode >= 300) {
         throw HttpException("Envoi refusé (${res.statusCode}). $body");
       }
-      return '${SupabaseConfig.url}/storage/v1/object/public/${SupabaseConfig.bucket}/$path';
+      final publicUrl =
+          '${SupabaseConfig.url}/storage/v1/object/public/${SupabaseConfig.bucket}/$path';
+      recent[publicUrl] = png;
+      return publicUrl;
     } finally {
       client.close(force: true);
     }

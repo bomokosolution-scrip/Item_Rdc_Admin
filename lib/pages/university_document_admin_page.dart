@@ -309,7 +309,11 @@ class _UniversityDocumentAdminPageState
                           clipBehavior: Clip.antiAlias,
                           child: ListTile(
                             contentPadding: const EdgeInsets.fromLTRB(14, 4, 6, 4),
-                            leading: IconBadge(icon: _iconFor(url)),
+                            leading: FileLeading(
+                              cover: (d['cover'] ?? '').toString(),
+                              url: url,
+                              icon: _iconFor(url),
+                            ),
                             title: Text(
                               title,
                               maxLines: 2,

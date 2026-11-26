@@ -227,3 +227,54 @@ class FileTrailing extends StatelessWidget {
     );
   }
 }
+
+/// Miniature YouTube automatique (vide si l'adresse n'est pas YouTube).
+String youtubeThumb(String url) {
+  final m = RegExp(
+    r'(?:youtu\.be/|youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/))([A-Za-z0-9_-]{11})',
+  ).firstMatch(url);
+  return m == null ? '' : 'https://img.youtube.com/vi/${m.group(1)}/hqdefault.jpg';
+}
+
+/// Vignette d'un fichier dans les listes admin : couverture si elle existe
+/// (affichée instantanément après un envoi), sinon l'icône habituelle.
+class FileLeading extends StatelessWidget {
+  final String cover;
+  final String url;
+  final IconData icon;
+  final double size;
+
+  const FileLeading({
+    super.key,
+    required this.cover,
+    required this.url,
+    required this.icon,
+    this.size = 44,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.accent(context);
+    final fallback = Icon(icon, color: accent);
+    final c = cover.trim();
+    final u = c.isNotEmpty ? c : youtubeThumb(url);
+    if (u.isEmpty) return fallback;
+    final mem = SupabaseStorage.recent[u];
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: mem != null
+            ? Image.memory(mem, fit: BoxFit.cover)
+            : Image.network(
+                u,
+                fit: BoxFit.cover,
+                cacheWidth: 160,
+                gaplessPlayback: true,
+                errorBuilder: (context, error, stack) => fallback,
+              ),
+      ),
+    );
+  }
+}

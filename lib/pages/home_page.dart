@@ -493,7 +493,11 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-              leading: Icon(Icons.picture_as_pdf_rounded, color: AppColors.accent(context)),
+              leading: FileLeading(
+                cover: (file['cover'] ?? '').toString(),
+                url: (file['url'] ?? '').toString(),
+                icon: Icons.picture_as_pdf_rounded,
+              ),
               title: Text(
                 (file['title'] ?? '').toString(),
                 maxLines: 2,
@@ -733,9 +737,10 @@ class _HomePageState extends State<HomePage> {
                                 left: 22,
                                 right: 6,
                               ),
-                              leading: Icon(
-                                Icons.picture_as_pdf_rounded,
-                                color: AppColors.accent(context),
+                              leading: FileLeading(
+                                cover: (item['cover'] ?? '').toString(),
+                                url: (item['url'] ?? '').toString(),
+                                icon: Icons.picture_as_pdf_rounded,
                               ),
                               title: Text(
                                 (item['title'] ?? '').toString(),

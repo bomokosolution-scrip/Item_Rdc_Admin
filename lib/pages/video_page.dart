@@ -703,7 +703,11 @@ class _VideoPageState extends State<VideoPage> {
                 (file['url'] ?? '').toString(),
                 (file['title'] ?? '').toString(),
               ),
-              leading: Icon(Icons.play_circle_fill_rounded, color: AppColors.accent(context)),
+              leading: FileLeading(
+                cover: (file['cover'] ?? '').toString(),
+                url: (file['url'] ?? '').toString(),
+                icon: Icons.play_circle_fill_rounded,
+              ),
               title: Text(
                 (file['title'] ?? '').toString(),
                 maxLines: 2,
@@ -981,9 +985,10 @@ class _VideoPageState extends State<VideoPage> {
       dense: true,
       contentPadding: const EdgeInsets.only(left: 22, right: 6),
       onTap: () => _openPlayer(url, title),
-      leading: Icon(
-        Icons.play_circle_fill_rounded,
-        color: AppColors.accent(context),
+      leading: FileLeading(
+        cover: (item['cover'] ?? '').toString(),
+        url: url,
+        icon: Icons.play_circle_fill_rounded,
       ),
       title: Text(
         title,
@@ -1012,7 +1017,11 @@ class _VideoPageState extends State<VideoPage> {
         child: ListTile(
           onTap: () => _openPlayer(video.url, video.title),
           contentPadding: const EdgeInsets.fromLTRB(14, 4, 6, 4),
-          leading: const IconBadge(icon: Icons.play_arrow_rounded),
+          leading: FileLeading(
+            cover: video.cover,
+            url: video.url,
+            icon: Icons.play_arrow_rounded,
+          ),
           title: Text(
             video.title,
             maxLines: 2,

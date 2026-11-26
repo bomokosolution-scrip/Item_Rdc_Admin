@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:item_rdc_admin/util/folder_icons.dart';
 import 'package:item_rdc_admin/theme_manager.dart';
 import 'package:item_rdc_admin/util/sorting.dart';
+import 'package:item_rdc_admin/util/supabase_storage.dart';
 import 'package:item_rdc_admin/widgets/image_import.dart';
 
 /// Bandeau d'en-tête dégradé, dans le prolongement de l'AppBar.
@@ -604,14 +605,17 @@ class FolderIconBadge extends StatelessWidget {
         width: size,
         height: size,
         color: Colors.white,
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          cacheWidth: (size * 3).round(),
-          errorBuilder: (_, _, _) => badge,
-          loadingBuilder: (context, child, progress) =>
-              progress == null ? child : badge,
-        ),
+        child: SupabaseStorage.recent[url] != null
+            ? Image.memory(SupabaseStorage.recent[url]!, fit: BoxFit.cover)
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                cacheWidth: (size * 3).round(),
+                gaplessPlayback: true,
+                errorBuilder: (_, _, _) => badge,
+                loadingBuilder: (context, child, progress) =>
+                    progress == null ? child : badge,
+              ),
       ),
     );
   }

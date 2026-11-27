@@ -13,20 +13,21 @@ class ChatAdminPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Chat"),
           bottom: const TabBar(
             tabs: [
               Tab(text: "Messages"),
+              Tab(text: "Help"),
               Tab(text: "Reports"),
               Tab(text: "Suspended"),
             ],
           ),
         ),
         body: const TabBarView(
-          children: [_MessagesTab(), _ReportsTab(), _BansTab()],
+          children: [_MessagesTab(), _HelpTab(), _ReportsTab(), _BansTab()],
         ),
       ),
     );
@@ -126,6 +127,17 @@ class _Mod {
   }
 }
 
+String _kindLabel(String kind) {
+  switch (kind) {
+    case 'help':
+      return 'Help';
+    case 'dm':
+      return 'Private message';
+    default:
+      return 'Group';
+  }
+}
+
 String _when(Object? t) {
   if (t is Timestamp) return DateFormat('dd/MM HH:mm').format(t.toDate());
   return '…';
@@ -146,26 +158,47 @@ class _MessagesTabState extends State<_MessagesTab> {
       .snapshots();
   final _settings = FirebaseFirestore.instance.collection('settings').doc('chat');
 
-  Widget _switchCard() {
+  Widget _switch(
+    Map<String, dynamic>? data,
+    String field,
+    String title,
+    String subtitleOn,
+    String subtitleOff,
+    IconData icon,
+  ) {
     final accent = AppColors.accent(context);
+    final on = data?[field] == true;
+    return SwitchListTile(
+      value: on,
+      activeThumbColor: accent,
+      secondary: Icon(icon, color: accent),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+      subtitle: Text(on ? subtitleOn : subtitleOff),
+      onChanged: (v) => _settings.set({
+        field: v,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)),
+    );
+  }
+
+  Widget _switchCard() {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _settings.snapshots(),
       builder: (context, snap) {
-        final on = snap.data?.data()?['generalEnabled'] == true;
+        final data = snap.data?.data();
         return Card(
           margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: SwitchListTile(
-            value: on,
-            activeThumbColor: accent,
-            secondary: Icon(on ? Icons.forum_rounded : Icons.forum_outlined, color: accent),
-            title: const Text("General chat open", style: TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Text(on
-                ? "All signed-in users can read and write."
-                : "Closed: users see « Discussion fermée »."),
-            onChanged: (v) => _settings.set({
-              'generalEnabled': v,
-              'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true)),
+          child: Column(
+            children: [
+              _switch(data, 'generalEnabled', "General group",
+                  "Open to all signed-in users.", "Closed.", Icons.groups_rounded),
+              const Divider(height: 1),
+              _switch(data, 'helpEnabled', "Help space (images)",
+                  "Users can post and answer.", "Closed.", Icons.support_rounded),
+              const Divider(height: 1),
+              _switch(data, 'dmEnabled', "Private messages",
+                  "Users can contact authors.", "Closed.", Icons.mail_rounded),
+            ],
           ),
         );
       },
@@ -246,6 +279,77 @@ class _MessagesTabState extends State<_MessagesTab> {
   }
 }
 
+// -------------------------------------------------------------------- Help
+class _HelpTab extends StatelessWidget {
+  const _HelpTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _Mod.db
+          .collection('help_posts')
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) return Center(child: Text("Error: ${snap.error}"));
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snap.data!.docs;
+        if (docs.isEmpty) {
+          return const EmptyState(
+            icon: Icons.support_rounded,
+            title: "No help requests yet",
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.only(top: 8, bottom: 40),
+          children: [
+            for (final p in docs)
+              Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: ListTile(
+                  leading: ('${p.data()['imageUrl'] ?? ''}').isEmpty
+                      ? const Icon(Icons.chat_bubble_outline_rounded)
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            '${p.data()['imageUrl']}',
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded),
+                          ),
+                        ),
+                  title: Text('${p.data()['pseudo'] ?? ''}  ·  ${_when(p.data()['createdAt'])}',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                  subtitle: Text(
+                    '${p.data()['text'] ?? ''}',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (v) async {
+                      if (v == 'delete') {
+                        await p.reference.delete();
+                      } else if (v == 'ban') {
+                        await _Mod.ban(context, '${p.data()['uid'] ?? ''}',
+                            '${p.data()['pseudo'] ?? ''}');
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'delete', child: Text("Delete request")),
+                      PopupMenuItem(value: 'ban', child: Text("Suspend user")),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 // ----------------------------------------------------------------- Reports
 class _ReportsTab extends StatelessWidget {
   const _ReportsTab();
@@ -283,7 +387,8 @@ class _ReportsTab extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${r.data()['messagePseudo'] ?? ''}',
+                      Text(
+                          '${r.data()['messagePseudo'] ?? ''}  ·  ${_kindLabel('${r.data()['kind'] ?? 'chat'}')}',
                           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                       const SizedBox(height: 4),
                       Text('${r.data()['messageText'] ?? ''}'),
@@ -298,16 +403,29 @@ class _ReportsTab extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 4,
                         children: [
-                          FilledButton.icon(
-                            onPressed: () async {
-                              try {
-                                await _Mod.deleteMessage('${r.data()['messageId'] ?? ''}');
-                              } catch (_) {}
-                              await r.reference.update({'status': 'closed'});
-                            },
-                            icon: const Icon(Icons.delete_rounded, size: 18),
-                            label: const Text("Delete message"),
-                          ),
+                          if ('${r.data()['kind'] ?? 'chat'}' != 'dm')
+                            FilledButton.icon(
+                              onPressed: () async {
+                                final kind = '${r.data()['kind'] ?? 'chat'}';
+                                try {
+                                  if (kind == 'help') {
+                                    final post = '${r.data()['postId'] ?? ''}';
+                                    final reply = '${r.data()['replyId'] ?? ''}';
+                                    final postRef = _Mod.db.collection('help_posts').doc(post);
+                                    if (reply.isNotEmpty) {
+                                      await postRef.collection('replies').doc(reply).delete();
+                                    } else {
+                                      await postRef.delete();
+                                    }
+                                  } else {
+                                    await _Mod.deleteMessage('${r.data()['messageId'] ?? ''}');
+                                  }
+                                } catch (_) {}
+                                await r.reference.update({'status': 'closed'});
+                              },
+                              icon: const Icon(Icons.delete_rounded, size: 18),
+                              label: const Text("Delete content"),
+                            ),
                           OutlinedButton.icon(
                             onPressed: () async {
                               await _Mod.ban(

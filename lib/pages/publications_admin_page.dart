@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:item_rdc_admin/pages/home_page.dart'; // PdfViewer
 import 'package:item_rdc_admin/theme_manager.dart';
 import 'package:item_rdc_admin/util/sorting.dart';
+import 'package:item_rdc_admin/util/sub_folders.dart';
 import 'package:item_rdc_admin/widgets/app_ui.dart';
 import 'package:item_rdc_admin/widgets/image_import.dart';
 
@@ -31,8 +32,70 @@ class _PublicationsAdminPageState extends State<PublicationsAdminPage> {
       ..showSnackBar(SnackBar(content: Text(m)));
   }
 
+  /// « TFC · 2025-2026 · Catégorie › Université » ou « Document · Dossier › Sous-dossier ».
+  String _where(Map<String, dynamic> d) {
+    final year = '${d['academicYear'] ?? ''}'.trim();
+    final head = ['${d['type'] ?? ''}', if (year.isNotEmpty) year].join(' · ');
+    if ('${d['kind'] ?? 'work'}' == 'document') {
+      final sub = '${d['subFolderTitle'] ?? ''}'.trim();
+      final space = '${d['space'] ?? ''}' == 'PREMIUM' ? 'Premium' : 'General';
+      return '$head · $space › ${d['folderTitle'] ?? ''}${sub.isEmpty ? '' : ' › $sub'}';
+    }
+    return '$head · ${d['categoryTitle'] ?? ''} › ${d['universityName'] ?? ''}';
+  }
+
+  /// Un « Document » est rangé dans le dossier (ou sous-dossier) choisi.
+  Future<void> _acceptDocument(QueryDocumentSnapshot<Map<String, dynamic>> pub) async {
+    final d = pub.data();
+    final col = '${d['space'] ?? ''}' == 'PREMIUM' ? 'PREMIUM_HOME' : 'GENERAL_HOME';
+    final folderId = '${d['folderId'] ?? ''}';
+    final sub = '${d['subFolderTitle'] ?? ''}'.trim();
+    if (folderId.isEmpty) {
+      _snack("Folder missing.");
+      return;
+    }
+    try {
+      final ref = _db.collection(col).doc(folderId);
+      final snap = await ref.get();
+      if (!snap.exists) {
+        _snack("This folder no longer exists. Refuse or ask the user to resend.");
+        return;
+      }
+      final items = (snap.data()?['items'] as List?) ?? const [];
+      if (sub.isNotEmpty &&
+          !items.any((e) => e is Map && SubFolders.isFolder(e) && e['title'] == sub)) {
+        _snack("This sub-folder no longer exists.");
+        return;
+      }
+      final item = <String, dynamic>{
+        'title': '${d['title'] ?? ''}',
+        'url': '${d['fileUrl'] ?? ''}',
+        'owner': '${d['ownerName'] ?? ''}',
+        if ('${d['details'] ?? ''}'.trim().isNotEmpty) 'details': '${d['details']}',
+        if ('${d['coverUrl'] ?? ''}'.trim().isNotEmpty) 'cover': '${d['coverUrl']}',
+        if ('${d['academicYear'] ?? ''}'.trim().isNotEmpty) 'academicYear': '${d['academicYear']}',
+        'publicationId': pub.id,
+        'createdAt': Timestamp.now(),
+      };
+      if (sub.isEmpty) {
+        await ref.update({'items': FieldValue.arrayUnion([item])});
+      } else {
+        await SubFolders.addFiles(ref, sub, [item]);
+      }
+      await pub.reference.update({
+        'status': 'approved',
+        'reason': '',
+        'reviewedAt': FieldValue.serverTimestamp(),
+      });
+      _snack("Published ✓");
+    } catch (e) {
+      _snack("Could not publish: $e");
+    }
+  }
+
   Future<void> _accept(QueryDocumentSnapshot<Map<String, dynamic>> pub) async {
     final d = pub.data();
+    if ('${d['kind'] ?? 'work'}' == 'document') return _acceptDocument(pub);
     final catId = '${d['categoryId'] ?? ''}';
     final uniId = '${d['universityId'] ?? ''}';
     if (catId.isEmpty || uniId.isEmpty) {
@@ -53,6 +116,7 @@ class _PublicationsAdminPageState extends State<PublicationsAdminPage> {
         'url': '${d['fileUrl'] ?? ''}',
         'type': '${d['type'] ?? ''}',
         'isAll': false,
+        if ('${d['academicYear'] ?? ''}'.trim().isNotEmpty) 'academicYear': '${d['academicYear']}',
         'owner': '${d['ownerName'] ?? ''}',
         if ('${d['details'] ?? ''}'.trim().isNotEmpty) 'details': '${d['details']}',
         if ('${d['coverUrl'] ?? ''}'.trim().isNotEmpty) 'cover': '${d['coverUrl']}',
@@ -194,7 +258,7 @@ class _PublicationsAdminPageState extends State<PublicationsAdminPage> {
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                       ),
                       Text(
-                        '${d['type'] ?? ''} · ${d['categoryTitle'] ?? ''} › ${d['universityName'] ?? ''}',
+                        _where(d),
                         style: TextStyle(fontSize: 12, color: muted),
                       ),
                       if (date != null)

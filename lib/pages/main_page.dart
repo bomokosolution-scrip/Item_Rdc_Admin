@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_arc_text/flutter_arc_text.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +13,7 @@ import 'package:item_rdc_admin/theme_manager.dart';
 import 'library_admin_page.dart';
 import 'notifications_page.dart';
 import 'publications_admin_page.dart';
+import 'chat_admin_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -162,6 +164,23 @@ class _MainPageState extends State<MainPage> {
           IconButton(
             icon: Icon(themeIcon, color: appBarForegroundColor),
             onPressed: onThemeToggle,
+          ),
+          IconButton(
+            tooltip: "Sign out",
+            icon: Icon(Icons.logout_rounded, color: appBarForegroundColor),
+            onPressed: () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text("Sign out?"),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+                    FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Sign out")),
+                  ],
+                ),
+              );
+              if (ok == true) await FirebaseAuth.instance.signOut();
+            },
           ),
         ],
       ),
@@ -614,6 +633,21 @@ class _MainPageState extends State<MainPage> {
                 context,
                 MaterialPageRoute(
                   builder: (BuildContext context) => const PublicationsAdminPage(),
+                ),
+              );
+            },
+            primaryColor,
+          ),
+          const SizedBox(height: 12),
+          _navButton(
+            "Chat",
+            "Moderate the general discussion",
+            Icons.forum_rounded,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (BuildContext context) => const ChatAdminPage(),
                 ),
               );
             },

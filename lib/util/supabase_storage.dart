@@ -21,11 +21,11 @@ class SupabaseConfig {
   //    --dart-define=SUPABASE_ANON_KEY=...  (rien à modifier dans ce fichier).
   static const String url = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://eovmshzuovdagxvanpcl.supabase.co',
+    defaultValue: 'https://VOTRE-PROJET.supabase.co',
   );
   static const String anonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'sb_publishable_dbO4dWACu1H0Qd0_RJ5EoQ_tJTD0kjI',
+    defaultValue: 'VOTRE_CLE_ANON_PUBLIC',
   );
   static const String bucket = 'media';
 
